@@ -10,12 +10,12 @@ ${QEMU} -kernel \
     ${KERNEL} \
 	-cpu  max \
     -s   \
+    -smp 4 \
     -m 8192m \
     -machine q35  \
     -initrd ${INITRD} \
     -object rng-random,filename=/dev/urandom,id=rng0 \
     -device virtio-rng-pci,rng=rng0 \
-    -device vhost-vsock-pci,guest-cid=42 \
     -device virtio-net-pci,netdev=n1 \
     -netdev user,id=n1,hostfwd=tcp:127.0.0.1:17010-:17010,net=192.168.1.0/24,host=192.168.1.1 \
     -serial mon:stdio -nographic \

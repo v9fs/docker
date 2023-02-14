@@ -18,27 +18,41 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
         && \
     eatmydata apt-get autoremove -y && \
     eatmydata apt-get autoclean -y
-ADD qemu.bash /root/qemu.bash
-WORKDIR /root
+RUN mkdir /home/v9fs-test
+WORKDIR /home/v9fs-test
 RUN git clone https://github.com/chaos/diod.git
-WORKDIR /root/diod
+WORKDIR /home/v9fs-test/diod
 RUN ./autogen.sh
 RUN ./configure
 RUN make
-WORKDIR /root
-ADD https://go.dev/dl/go1.19.linux-amd64.tar.gz /root
-RUN tar xf go*.tar.gz
-ENV GOPATH /root/go
-ENV PATH /root/go/bin:${PATH}
-RUN go install github.com/u-root/cpu/cmds/cpu@latest
+RUN make check
+WORKDIR /usr/local
+ADD https://go.dev/dl/go1.19.linux-amd64.tar.gz /tmp
+RUN tar xf /tmp/go*.tar.gz;rm /tmp/go*.tar.gz
+ENV GOROOT /usr/local/go
+ENV GOPATH /home/v9fs-test/go
+ENV PATH /home/v9fs-test/go/bin:/usr/local/go/bin:${PATH}
 ENV LANG "en_US.UTF-8"
 ENV MAKE "/usr/bin/make"
-WORKDIR /root
-RUN ssh-keygen -t rsa -q -f "/root/.ssh/id_rsa" -N ""
-RUN git clone https://github.com/u-root/u-root.git
+WORKDIR /home/v9fs-test
+RUN ssh-keygen -t rsa -q -f "/root/.ssh/identity" -N ""
+RUN git clone -b v0.9.0 https://github.com/u-root/u-root.git
 RUN git clone https://github.com/u-root/cpu.git
-WORKDIR /root/u-root
+WORKDIR /home/v9fs-test/u-root
+RUN go mod tidy
 RUN go build .
 RUN go install .
-WORKDIR /root/cpu
-RUN /root/go/bin/u-root -files /root/.ssh/id_rsa.pub:key.pub -files /mnt -uroot-source /root/u-root -initcmd=/bbin/cpud $* core cmds/cpud cmds/cpu
+WORKDIR /home/v9fs-test/cpu
+RUN go mod tidy
+WORKDIR /home/v9fs-test/cpu/cmds/cpud
+RUN go mod tidy
+RUN go build
+RUN go install
+WORKDIR /home/v9fs-test/cpu/cmds/cpu
+RUN go mod tidy
+RUN go build
+RUN go install
+WORKDIR /home/v9fs-test/cpu
+RUN /home/v9fs-test/go/bin/u-root -files /root/.ssh/identity.pub:key.pub -files /mnt -uroot-source /home/v9fs-test/u-root -initcmd=/bbin/cpud $* core cmds/cpud
+WORKDIR /home/v9fs-test
+ADD qemu.bash /root/qemu.bash
