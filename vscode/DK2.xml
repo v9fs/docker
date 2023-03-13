@@ -1,0 +1,56 @@
+<domain type='qemu' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
+  <name>DebugKernel</name>
+  <uuid>a3fb92be-45c1-4c5d-9515-87a904cafad1</uuid>
+  <memory dumpCore='on' unit='KiB'>4194304</memory>
+  <currentMemory unit='KiB'>4194304</currentMemory>
+  <cpu mode='custom' match="exact">
+    <model>cortex-a72</model>
+  </cpu>
+  <vcpu placement='static'>2</vcpu>
+  <clock offset='localtime'/>
+  <os>
+    <type arch='aarch64' machine='virt'>hvm</type>
+    <kernel>/Users/erivan01/images/Image</kernel>
+    <cmdline>root=/dev/vda1 earlycon panic=-1 /bbin/cpud</cmdline>
+  </os>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>destroy</on_reboot>
+  <on_crash>destroy</on_crash>
+  <devices>
+    <emulator>/opt/homebrew/bin/qemu-system-aarch64</emulator>
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='raw'/>
+      <source file='/Users/erivan01/images/ubuntu-22.10-live-server-arm64.iso'/>
+      <target dev='vda' bus='virtio'/>
+      <address type='pci' domain='0x0000' bus='0x03' slot='0x00' function='0x0'/>
+    </disk>
+    <controller type='virtio-serial' index='0'>
+      <address type='pci' domain='0x0000' bus='0x02' slot='0x00' function='0x0'/>
+    </controller>
+    <console type='pty'>
+      <target type='serial' port='0'/>
+    </console>
+    <console type='pty'>
+      <target type='virtio' port='1'/>
+    </console>
+    <filesystem type='mount' accessmode='mapped'>
+      <source dir='/Users/erivan01/images/tmp'/>
+      <target dir='hostshare'/>
+    </filesystem>
+  </devices>
+  <controller type='virtio-serial' index='0'>
+    <address type='pci' domain='0x0000' bus='0x02' slot='0x00' function='0x0'/>
+  </controller>
+  <console type='pty'>
+    <target type='serial' port='1'/>
+  </console>
+  <console type='pty'>
+    <target type='virtio' port='0'/>
+  </console>
+  <qemu:commandline>
+    <qemu:arg value='-s'/>
+    <qemu:arg value='-netdev'/>
+    <qemu:arg value='user,id=n1,hostfwd=tcp:127.0.0.1:17010-:17010,net=192.168.1.0/24,host=192.168.1.1'/>
+  </qemu:commandline>
+</domain>
+
