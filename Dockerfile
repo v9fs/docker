@@ -26,6 +26,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     dpkg-query --showformat '${Package}_${Version}_${Architecture}\n' --show > /packages.txt
 
 RUN pip install b4
+WORKDIR /usr/local/bin
+RUN ln -s /usr/bin/pinentry-tty
 RUN mkdir -p /workspaces
 RUN chown 1000.1000 /workspaces
 WORKDIR /tmp
@@ -49,7 +51,7 @@ WORKDIR /home/v9fs-test/diod
 RUN ./autogen.sh
 RUN ./configure
 RUN make
-RUN make check; exit 0
+RUN make check;exit 0
 ENV PATH /home/v9fs-test/go/bin:/usr/local/go/bin:${PATH}
 ENV LANG "en_US.UTF-8"
 ENV MAKE "/usr/bin/make"
@@ -76,6 +78,7 @@ WORKDIR /home/v9fs-test/cpu
 RUN /home/v9fs-test/go/bin/u-root -o /home/v9fs-test/initrd.cpio -files /home/v9fs-test/.ssh/identity.pub:key.pub -files /mnt -uroot-source /home/v9fs-test/u-root -initcmd=/bbin/cpud $* core cmds/cpud
 ENV LANG "en_US.UTF-8"
 ENV MAKE "/usr/bin/make"
+WORKDIR /home/v9fs-test
+RUN git clone https://github.com/v9fs/vscode
 WORKDIR /workspaces
-ADD vscode .vscode
 CMD /bin/sh -c "while sleep 1000; do :; done"
