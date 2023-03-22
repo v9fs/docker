@@ -81,4 +81,5 @@ ENV MAKE "/usr/bin/make"
 WORKDIR /home/v9fs-test
 RUN git clone https://github.com/v9fs/vscode
 WORKDIR /workspaces
+RUN git clone https://github.com/v9fs/test
 CMD /bin/sh -c "while sleep 1000; do :; done"
