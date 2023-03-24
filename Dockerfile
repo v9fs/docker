@@ -80,6 +80,6 @@ ENV LANG "en_US.UTF-8"
 ENV MAKE "/usr/bin/make"
 WORKDIR /home/v9fs-test
 RUN git clone https://github.com/v9fs/vscode
-WORKDIR /workspaces
 RUN git clone https://github.com/v9fs/test
+WORKDIR /workspaces
 CMD /bin/sh -c "while sleep 1000; do :; done"
