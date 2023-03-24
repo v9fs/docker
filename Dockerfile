@@ -15,6 +15,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
         	      qemu-system ca-certificates git-core openssh-client \
         	      libpopt-dev ncurses-dev automake autoconf git pkgconf \
         	      lua5.1 liblua5.1-dev libmunge-dev libwrap0-dev libcap-dev libattr1-dev \
+              time \
 		      mutt \
 		      pip \
               vim pinentry-tty libsasl2-modules \
