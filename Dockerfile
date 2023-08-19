@@ -38,7 +38,7 @@ RUN if [ `uname -m` = "aarch64" ]; then \
     else \
 	export TARGETGOARCH="amd64"; \
     fi; \
-    wget https://go.dev/dl/go1.19.linux-$TARGETGOARCH.tar.gz; \
+    wget https://go.dev/dl/go1.20.linux-$TARGETGOARCH.tar.gz; \
     tar xf go*.tar.gz;rm go*.tar.gz;mv go /usr/local
 ENV GOROOT /usr/local/go
 ENV GOPATH /home/v9fs-test/go
@@ -63,13 +63,16 @@ RUN ssh-keygen -t rsa -q -f "/home/v9fs-test/.ssh/identity" -N ""
 RUN git clone -b v0.9.0 https://github.com/u-root/u-root.git
 RUN git clone https://github.com/u-root/cpu.git
 WORKDIR /home/v9fs-test/u-root
+RUN go mod tidy
 RUN go build .
 RUN go install .
 WORKDIR /home/v9fs-test/cpu
 WORKDIR /home/v9fs-test/cpu/cmds/cpud
+RUN go mod tidy
 RUN go build
 RUN go install
 WORKDIR /home/v9fs-test/cpu/cmds/cpu
+RUN go mod tidy
 RUN go build
 RUN go install
 WORKDIR /home/v9fs-test/cpu
