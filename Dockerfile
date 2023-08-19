@@ -7,19 +7,20 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get install -y eatmydata && \
     eatmydata apt-get dist-upgrade -y && \
     eatmydata apt-get install --no-install-recommends -y \
-		      gcc \
-              gdb \
-              libvirt-clients \
-		      build-essential bc fakeroot linux-tools-generic dwarves \
-		      libncurses-dev gawk flex bison openssl libssl-dev dkms libelf-dev libudev-dev libpci-dev libiberty-dev autoconf llvm \
-        	      qemu-system ca-certificates git-core openssh-client \
-        	      libpopt-dev ncurses-dev automake autoconf git pkgconf \
-        	      lua5.1 liblua5.1-dev libmunge-dev libwrap0-dev libcap-dev libattr1-dev \
-              time \
-		      mutt \
-		      pip \
-              vim pinentry-tty libsasl2-modules \
-                      && \
+	gcc \
+	gdb \
+	libvirt-clients \
+	build-essential bc fakeroot linux-tools-generic dwarves \
+	libncurses-dev gawk flex bison openssl libssl-dev dkms libelf-dev libudev-dev libpci-dev libiberty-dev autoconf llvm \
+        qemu-system ca-certificates git-core openssh-client \
+        libpopt-dev ncurses-dev automake autoconf git pkgconf \
+        lua5.1 liblua5.1-dev libmunge-dev libwrap0-dev libcap-dev libattr1-dev \
+        time \
+	mutt \
+	pip \
+	vim pinentry-tty libsasl2-modules \
+	bonnie++ \
+        && \
     eatmydata apt-get autoremove -y && \
     eatmydata apt-get autoclean -y && \
     sed -Ei 's,^# (en_US\.UTF-8 .*)$,\1,' /etc/locale.gen && \
