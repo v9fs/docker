@@ -63,17 +63,13 @@ RUN ssh-keygen -t rsa -q -f "/home/v9fs-test/.ssh/identity" -N ""
 RUN git clone -b v0.9.0 https://github.com/u-root/u-root.git
 RUN git clone https://github.com/u-root/cpu.git
 WORKDIR /home/v9fs-test/u-root
-RUN go mod tidy
 RUN go build .
 RUN go install .
 WORKDIR /home/v9fs-test/cpu
-RUN go mod tidy
 WORKDIR /home/v9fs-test/cpu/cmds/cpud
-RUN go mod tidy
 RUN go build
 RUN go install
 WORKDIR /home/v9fs-test/cpu/cmds/cpu
-RUN go mod tidy
 RUN go build
 RUN go install
 WORKDIR /home/v9fs-test/cpu
