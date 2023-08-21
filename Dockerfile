@@ -53,6 +53,7 @@ WORKDIR /home/v9fs-test/diod
 RUN ./autogen.sh
 RUN ./configure
 RUN make
+WORKDIR /home/v9fs-test/diod/tests/kern
 RUN make check;exit 0
 ENV PATH /home/v9fs-test/go/bin:/usr/local/go/bin:${PATH}
 ENV LANG "en_US.UTF-8"
