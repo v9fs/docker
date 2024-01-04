@@ -77,6 +77,8 @@ RUN go mod tidy
 RUN go build
 RUN go install
 WORKDIR /home/v9fs-test/cpu
+RUN mkdir -p /mnt/9
+RUN mkdir -p /mnt/root
 RUN /home/v9fs-test/go/bin/u-root -o /home/v9fs-test/initrd.cpio -files /home/v9fs-test/.ssh/identity.pub:key.pub -files /mnt -uroot-source /home/v9fs-test/u-root -initcmd=/bbin/cpud $* core cmds/cpud
 ENV LANG "en_US.UTF-8"
 ENV MAKE "/usr/bin/make"
