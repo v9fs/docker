@@ -28,6 +28,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     dpkg-query --showformat '${Package}_${Version}_${Architecture}\n' --show > /packages.txt
 
 RUN pip install b4
+RUN mkdir -p /mnt/9
+RUN mkdir -p /mnt/root
 WORKDIR /usr/local/bin
 RUN ln -s /usr/bin/pinentry-tty
 RUN mkdir -p /workspaces
@@ -77,8 +79,6 @@ RUN go mod tidy
 RUN go build
 RUN go install
 WORKDIR /home/v9fs-test/cpu
-RUN mkdir -p /mnt/9
-RUN mkdir -p /mnt/root
 RUN /home/v9fs-test/go/bin/u-root -o /home/v9fs-test/initrd.cpio -files /home/v9fs-test/.ssh/identity.pub:key.pub -files /mnt -uroot-source /home/v9fs-test/u-root -initcmd=/bbin/cpud $* core cmds/cpud
 ENV LANG "en_US.UTF-8"
 ENV MAKE "/usr/bin/make"
