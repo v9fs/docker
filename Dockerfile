@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/base:jammy
+FROM mcr.microsoft.com/devcontainers/base:latest
 
 ARG TARGETARCH
 
@@ -10,7 +10,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
 	gcc \
 	gdb \
 	libvirt-clients \
-	build-essential bc fakeroot linux-tools-generic dwarves \
+	build-essential bc fakeroot dwarves \
 	libncurses-dev gawk flex bison openssl libssl-dev dkms libelf-dev libudev-dev libpci-dev libiberty-dev autoconf llvm \
         qemu-system ca-certificates git-core openssh-client \
         libpopt-dev ncurses-dev automake autoconf git pkgconf \
@@ -18,6 +18,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
         time \
 	mutt \
 	pip \
+	b4 \
 	vim pinentry-tty libsasl2-modules \
 	bonnie++ \
         && \
@@ -27,7 +28,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     dpkg-reconfigure locales && \
     dpkg-query --showformat '${Package}_${Version}_${Architecture}\n' --show > /packages.txt
 
-RUN pip install b4
 RUN mkdir -p /mnt/9
 RUN mkdir -p /mnt/root
 WORKDIR /usr/local/bin
