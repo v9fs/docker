@@ -1,8 +1,8 @@
 FROM mcr.microsoft.com/devcontainers/base:latest
 
 ARG TARGETARCH
-ARG GOLANGVERS="1.24.0"
-ARG UROOTVERS="v0.14.0"
+ARG GOLANGVERS="1.26.2"
+ARG UROOTVERS="v0.16.0"
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update && \
     apt-get install -y eatmydata && \
