@@ -22,7 +22,7 @@ jobs:
         github.event_name == 'workflow_dispatch' ||
         (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event != 'pull_request')
       }}
-    runs-on: ubuntu-24.04-arm64
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
       contents: read
@@ -73,6 +73,7 @@ jobs:
         run: |
           set -euo pipefail
           CID="$(docker create \
+            --platform linux/arm64 \
             -e KERNEL_REF="${KERNEL_REF}" \
             "${IMAGE}" \
             sh -lc '
