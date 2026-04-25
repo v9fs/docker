@@ -20,6 +20,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4.0.0
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4.0.0
 
@@ -28,7 +31,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/amd64
+          platforms: linux/arm64
           load: true
           tags: v9fs-kernel-smoke:local
           cache-from: type=gha
