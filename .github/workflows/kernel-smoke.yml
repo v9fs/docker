@@ -72,7 +72,7 @@ jobs:
           IMAGE: ${{ (github.event_name == 'workflow_dispatch' && inputs.use_local_image) && 'v9fs-kernel-smoke:local' || format('ghcr.io/{0}:sha-{1}', github.repository, github.event.workflow_run.head_sha || github.sha) }}
         run: |
           set -euo pipefail
-          docker run --rm \
+          CID="$(docker create \
             --platform linux/arm64 \
             -e KERNEL_REF="${KERNEL_REF}" \
             "${IMAGE}" \
@@ -86,5 +86,36 @@ jobs:
               git checkout -q FETCH_HEAD
               make defconfig
               make -j"$(nproc)"
-            '
+            ')"
+          trap 'docker rm -f "${CID}" >/dev/null 2>&1 || true' EXIT
+          docker start -a "${CID}"
+
+          mkdir -p artifacts
+          docker cp "${CID}:/opt/v9fs/kernel/arch/arm64/boot/Image" artifacts/Image
+          docker cp "${CID}:/opt/v9fs/initrd.cpio" artifacts/initrd.cpio
+
+      - name: Boot kernel on QEMU (arm64) with u-root initrd
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-system-arm
+
+          test -s artifacts/Image
+          test -s artifacts/initrd.cpio
+
+          # Boot with u-root init. We consider it a pass if we see u-root-ish output.
+          timeout 120s qemu-system-aarch64 \
+            -machine virt \
+            -cpu cortex-a57 \
+            -m 1024 \
+            -nographic \
+            -no-reboot \
+            -nodefaults \
+            -serial mon:stdio \
+            -kernel artifacts/Image \
+            -initrd artifacts/initrd.cpio \
+            -append 'console=ttyAMA0 rdinit=/bbin/init panic=-1' \
+            2>&1 | tee artifacts/qemu.log
+
+          grep -Eiq '(u-root|gosh|BusyBox|cpud)' artifacts/qemu.log
 
