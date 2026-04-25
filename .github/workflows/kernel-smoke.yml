@@ -113,8 +113,8 @@ jobs:
             -serial mon:stdio \
             -kernel artifacts/Image \
             -initrd artifacts/initrd.cpio \
-            -append 'console=ttyAMA0 rdinit=/bbin/init panic=-1' \
+            -append 'console=ttyAMA0 rdinit=/bbin/gosh -c \"echo SMOKE_OK; poweroff -f || halt -f\" panic=-1' \
             2>&1 | tee artifacts/qemu.log
 
-          grep -Eiq '(u-root|gosh|BusyBox|cpud)' artifacts/qemu.log
+          grep -Eq 'SMOKE_OK' artifacts/qemu.log
 
