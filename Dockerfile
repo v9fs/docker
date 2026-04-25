@@ -15,6 +15,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
 	build-essential bc fakeroot dwarves \
 	libncurses-dev gawk flex bison openssl libssl-dev dkms libelf-dev libudev-dev libpci-dev libiberty-dev autoconf llvm \
         qemu-system ca-certificates git-core openssh-client \
+        bash coreutils util-linux findutils \
+        iproute2 kmod gzip grep sed gawk \
         libpopt-dev ncurses-dev automake autoconf git pkgconf \
         lua5.1 liblua5.1-dev libmunge-dev libwrap0-dev libcap-dev libattr1-dev \
         time \
@@ -24,6 +26,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
 	vim pinentry-tty libsasl2-modules \
 	diod \
 	bonnie++ \
+        dbench postmark \
         && \
     eatmydata apt-get autoremove -y && \
     eatmydata apt-get autoclean -y && \
@@ -60,6 +63,10 @@ RUN ssh-keygen -t rsa -q -f "/opt/v9fs/.ssh/identity" -N ""
 RUN go install github.com/u-root/u-root@${UROOTVERS}
 RUN go install github.com/u-root/cpu/cmds/cpud@${CPUVERS}
 RUN go install github.com/u-root/cpu/cmds/cpu@${CPUVERS}
+USER root:root
+COPY v9fs-init /opt/v9fs/v9fs-init
+RUN chmod 0755 /opt/v9fs/v9fs-init
+USER 1000:1000
 RUN export UROOT_DIR="$(go list -f '{{.Dir}}' -m github.com/u-root/u-root@${UROOTVERS})" && \
     export CPU_DIR="$(go list -f '{{.Dir}}' -m github.com/u-root/cpu@${CPUVERS})" && \
     mkdir -p /opt/v9fs/uimage-ws && \
@@ -68,10 +75,12 @@ RUN export UROOT_DIR="$(go list -f '{{.Dir}}' -m github.com/u-root/u-root@${UROO
     GOWORK=/opt/v9fs/uimage-ws/go.work /opt/v9fs/go/bin/u-root \
       -o /opt/v9fs/initrd.cpio \
       -files /opt/v9fs/.ssh/identity.pub:key.pub \
+      -files /opt/v9fs/v9fs-init:bbin/v9fs-init \
       -files /mnt \
-      -initcmd=/bbin/cpud \
+      -initcmd=/bbin/v9fs-init \
       "$*" \
       github.com/u-root/u-root/cmds/core/{init,gosh} \
+      github.com/u-root/u-root/cmds/core/{mount,ls,mkdir,cat,echo,sleep,sync} \
       github.com/u-root/cpu/cmds/cpud
 ENV LANG="en_US.UTF-8"
 ENV MAKE="/usr/bin/make"
