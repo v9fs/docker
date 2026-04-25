@@ -1,0 +1,7 @@
+{
+  "event_name": "workflow_dispatch",
+  "inputs": {
+    "use_local_image": "true"
+  }
+}
+

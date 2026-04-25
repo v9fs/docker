@@ -2,6 +2,11 @@ name: Kernel smoke test
 
 on:
   workflow_dispatch:
+    inputs:
+      use_local_image:
+        description: "Build and load the image locally (for act runs)"
+        type: boolean
+        default: false
   workflow_run:
     workflows: ["Docker"]
     types: [completed]
@@ -24,10 +29,29 @@ jobs:
       packages: read
 
     steps:
+      - name: Checkout repository (act/local build)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.use_local_image }}
+        uses: actions/checkout@v6
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4.0.0
 
+      - name: Set up Docker Buildx
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.use_local_image }}
+        uses: docker/setup-buildx-action@v4.0.0
+
+      - name: Build image locally (act)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.use_local_image }}
+        uses: docker/build-push-action@v7.1.0
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/arm64
+          load: true
+          tags: v9fs-kernel-smoke:local
+
       - name: Log in to ghcr.io
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.use_local_image) }}
         uses: docker/login-action@v4.1.0
         with:
           registry: ghcr.io
@@ -35,6 +59,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull image built by Docker workflow
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.use_local_image) }}
         env:
           IMAGE: ghcr.io/${{ github.repository }}:sha-${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
@@ -44,7 +69,7 @@ jobs:
       - name: Build Linux kernel inside image
         env:
           KERNEL_REF: v6.16
-          IMAGE: ghcr.io/${{ github.repository }}:sha-${{ github.event.workflow_run.head_sha || github.sha }}
+          IMAGE: ${{ (github.event_name == 'workflow_dispatch' && inputs.use_local_image) && 'v9fs-kernel-smoke:local' || format('ghcr.io/{0}:sha-{1}', github.repository, github.event.workflow_run.head_sha || github.sha) }}
         run: |
           set -euo pipefail
           docker run --rm \
