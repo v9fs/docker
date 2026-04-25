@@ -2,10 +2,9 @@ name: Kernel smoke test
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_run:
+    workflows: ["Docker"]
+    types: [completed]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -13,38 +12,45 @@ concurrency:
 
 jobs:
   kernel-build:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event != 'pull_request')
+      }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: read
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4.0.0
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4.0.0
-
-      - name: Build image (local load)
-        uses: docker/build-push-action@v7.1.0
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v4.1.0
         with:
-          context: .
-          file: ./Dockerfile
-          platforms: linux/arm64
-          load: true
-          tags: v9fs-kernel-smoke:local
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull image built by Docker workflow
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}:sha-${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          docker pull "${IMAGE}"
 
       - name: Build Linux kernel inside image
         env:
           KERNEL_REF: v6.16
+          IMAGE: ghcr.io/${{ github.repository }}:sha-${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           set -euo pipefail
           docker run --rm \
+            --platform linux/arm64 \
             -e KERNEL_REF="${KERNEL_REF}" \
-            v9fs-kernel-smoke:local \
+            "${IMAGE}" \
             sh -lc '
               set -euo pipefail
               mkdir -p /opt/v9fs/kernel
