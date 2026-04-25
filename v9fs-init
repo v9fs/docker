@@ -1,0 +1,78 @@
+#!/bbin/gosh
+set -eu
+exec >/dev/console 2>&1
+
+echo "v9fs-init: boot"
+
+mkdir -p /proc /sys /dev /run /tmp /mnt/9
+
+# Best-effort mounts (some may already be mounted depending on build).
+mount -t proc proc /proc 2>/dev/null || true
+mount -t sysfs sysfs /sys 2>/dev/null || true
+mount -t devtmpfs devtmpfs /dev 2>/dev/null || true
+
+cmdline="$(cat /proc/cmdline 2>/dev/null || true)"
+
+get_karg() {
+  key="$1"
+  for tok in $cmdline; do
+    case "$tok" in
+      "$key") echo ""; return 0 ;;
+      "$key="*) echo "${tok#${key}=}"; return 0 ;;
+    esac
+  done
+  return 1
+}
+
+tests="$(get_karg v9fs.tests 2>/dev/null || true)"
+cmd="$(get_karg v9fs.cmd 2>/dev/null || true)"
+ts="$(get_karg v9fs.ts 2>/dev/null || true)"
+tag="$(get_karg v9fs.mount_tag 2>/dev/null || echo hostshare)"
+dialect="$(get_karg v9fs.dialect 2>/dev/null || echo 9p2000.L)"
+cache="$(get_karg v9fs.cache 2>/dev/null || echo loose)"
+
+echo "v9fs-init: ts=${ts:-} tests=${tests:-} cmd=${cmd:-} tag=${tag} dialect=${dialect} cache=${cache}"
+
+if [ -x /bbin/cpud ]; then
+  echo "v9fs-init: starting cpud in background"
+  /bbin/cpud &
+fi
+
+opts="trans=virtio,version=${dialect},cache=${cache}"
+if mount -t 9p -o "$opts" "$tag" /mnt/9; then
+  echo "v9fs-init: mounted hostshare at /mnt/9"
+else
+  echo "v9fs-init: ERROR: mount 9p failed (opts=$opts)"
+  echo "v9fs-init: requesting poweroff via sysrq"
+  echo o >/proc/sysrq-trigger || true
+  while :; do sleep 1; done
+fi
+
+rc=0
+if [ -n "${cmd:-}" ]; then
+  if [ -x /mnt/9/usr/sbin/chroot ] && [ -x /mnt/9/bin/bash ]; then
+    /mnt/9/usr/sbin/chroot /mnt/9 /bin/bash -lc "$cmd" || rc=$?
+  else
+    echo "v9fs-init: ERROR: missing /usr/sbin/chroot or /bin/bash in exported root"
+    rc=2
+  fi
+elif [ -n "${tests:-}" ]; then
+  disp="/home/v9fs-test/test/scripts/v9fs-guest-dispatch"
+  if [ -x "/mnt/9${disp}" ]; then
+    /mnt/9/usr/sbin/chroot /mnt/9 /bin/bash -lc "set -euo pipefail; ${disp} '$tests'" || rc=$?
+  else
+    echo "v9fs-init: ERROR: no dispatcher at ${disp} (provide v9fs.cmd=... or ship dispatcher)"
+    rc=2
+  fi
+else
+  echo "v9fs-init: nothing to run (provide v9fs.cmd=... or v9fs.tests=...)"
+fi
+
+mkdir -p /mnt/9/home/v9fs-test/test/logs 2>/dev/null || true
+echo "$rc" >/mnt/9/home/v9fs-test/test/logs/guest.exitcode 2>/dev/null || true
+
+echo "v9fs-init: requesting poweroff via sysrq"
+echo o >/proc/sysrq-trigger || true
+echo "v9fs-init: poweroff returned; idling"
+while :; do sleep 1; done
+
