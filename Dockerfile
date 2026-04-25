@@ -3,6 +3,7 @@ FROM mcr.microsoft.com/devcontainers/base:latest
 ARG TARGETARCH
 ARG GOLANGVERS="1.26.2"
 ARG UROOTVERS="v0.16.0"
+ARG CPUVERS="32363d29d8100d0b938b4f7099bd21260d69b1bd"
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update && \
     apt-get install -y eatmydata && \
@@ -21,6 +22,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
 	pip \
 	b4 \
 	vim pinentry-tty libsasl2-modules \
+	diod \
 	bonnie++ \
         && \
     eatmydata apt-get autoremove -y && \
@@ -44,49 +46,32 @@ RUN if [ `uname -m` = "aarch64" ]; then \
     wget https://go.dev/dl/go${GOLANGVERS}.linux-${TARGETGOARCH}.tar.gz; \
     tar xf go*.tar.gz;rm go*.tar.gz;mv go /usr/local
 ENV GOROOT=/usr/local/go
-ENV GOPATH=/home/v9fs-test/go
-RUN mkdir -p /home/v9fs-test
-RUN chown 1000.1000 /home/v9fs-test
+ENV V9FS_ROOT=/opt/v9fs
+ENV GOPATH=/opt/v9fs/go
+RUN install -d -m 0777 /opt/v9fs
 USER 1000:1000
-RUN mkdir -p /home/v9fs-test/go
-# setup tests
-WORKDIR /home/v9fs-test
-RUN git clone https://github.com/chaos/diod.git
-WORKDIR /home/v9fs-test/diod
-RUN ./autogen.sh
-RUN ./configure
-RUN make
-WORKDIR /home/v9fs-test/diod/tests/kern
-RUN make check;exit 0
-ENV PATH=/home/v9fs-test/go/bin:/usr/local/go/bin:${PATH}
+RUN mkdir -p /opt/v9fs/go
+ENV PATH=/opt/v9fs/go/bin:/usr/local/go/bin:${PATH}
 ENV LANG="en_US.UTF-8"
 ENV MAKE="/usr/bin/make"
-WORKDIR /home/v9fs-test
-RUN mkdir -p /home/v9fs-test/.ssh
-RUN ssh-keygen -t rsa -q -f "/home/v9fs-test/.ssh/identity" -N ""
-RUN git clone -b ${UROOTVERS} https://github.com/u-root/u-root.git
-RUN git clone https://github.com/u-root/cpu.git
-WORKDIR /home/v9fs-test/u-root
-RUN go mod tidy
-RUN go build .
-RUN go install .
-WORKDIR /home/v9fs-test/cpu
-WORKDIR /home/v9fs-test/cpu/cmds/cpud
-RUN go mod tidy
-RUN go build
-RUN go install
-WORKDIR /home/v9fs-test/cpu/cmds/cpu
-RUN go mod tidy
-RUN go build
-RUN go install
-WORKDIR /home/v9fs-test
-RUN ["go", "work", "init", "./u-root"]
-RUN ["go", "work", "use", "./cpu" ]
-RUN ["/home/v9fs-test/go/bin/u-root", "-o", "/home/v9fs-test/initrd.cpio", "-files", "/home/v9fs-test/.ssh/identity.pub:key.pub", "-files", "/mnt", "-initcmd=/bbin/cpud", "$*", "./u-root/cmds/core/{init,gosh}", "./cpu/cmds/cpud"]
+WORKDIR /opt/v9fs
+RUN mkdir -p /opt/v9fs/.ssh
+RUN ssh-keygen -t rsa -q -f "/opt/v9fs/.ssh/identity" -N ""
+RUN go install github.com/u-root/u-root@${UROOTVERS}
+RUN go install github.com/u-root/cpu/cmds/cpud@${CPUVERS}
+RUN go install github.com/u-root/cpu/cmds/cpu@${CPUVERS}
+RUN export UROOT_DIR="$(go list -f '{{.Dir}}' -m github.com/u-root/u-root@${UROOTVERS})" && \
+    export CPU_DIR="$(go list -f '{{.Dir}}' -m github.com/u-root/cpu@${CPUVERS})" && \
+    mkdir -p /opt/v9fs/uimage-ws && \
+    cd /opt/v9fs/uimage-ws && \
+    go work init "${UROOT_DIR}" "${CPU_DIR}" && \
+    GOWORK=/opt/v9fs/uimage-ws/go.work /opt/v9fs/go/bin/u-root \
+      -o /opt/v9fs/initrd.cpio \
+      -files /opt/v9fs/.ssh/identity.pub:key.pub \
+      -files /mnt \
+      -initcmd=/bbin/cpud \
+      "$*" \
+      github.com/u-root/u-root/cmds/core/{init,gosh} \
+      github.com/u-root/cpu/cmds/cpud
 ENV LANG="en_US.UTF-8"
 ENV MAKE="/usr/bin/make"
-WORKDIR /home/v9fs-test
-RUN git clone https://github.com/v9fs/vscode
-RUN git clone https://github.com/v9fs/test
-WORKDIR /workspaces
-CMD ["/bin/sh", "-c", "while sleep 1000; do :; done"]
