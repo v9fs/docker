@@ -7,6 +7,15 @@ on:
         description: "Build and load the image locally (for act runs)"
         type: boolean
         default: false
+      kernel_release:
+        description: "v9fs/test release tag providing arm64 Image (default: kernel-main). If set, CI downloads the kernel instead of building it."
+        type: string
+        required: true
+        default: "kernel-main"
+      build_kernel:
+        description: "Force building Linux kernel from source inside the image (slow)."
+        type: boolean
+        default: false
   workflow_run:
     workflows: ["Docker"]
     types: [completed]
@@ -66,7 +75,30 @@ jobs:
           set -euo pipefail
           docker pull "${IMAGE}"
 
-      - name: Build Linux kernel inside image
+      - name: Extract initrd from image
+        env:
+          KERNEL_REF: v6.16
+          IMAGE: ${{ (github.event_name == 'workflow_dispatch' && inputs.use_local_image) && 'v9fs-kernel-smoke:local' || format('ghcr.io/{0}:sha-{1}', github.repository, github.event.workflow_run.head_sha || github.sha) }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          CID="$(docker create --platform linux/arm64 "${IMAGE}" sh -lc 'true')"
+          trap 'docker rm -f "${CID}" >/dev/null 2>&1 || true' EXIT
+          docker cp "${CID}:/opt/v9fs/initrd.cpio" artifacts/initrd.cpio
+
+      - name: Download published kernel Image (default)
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.build_kernel) }}
+        env:
+          KERNEL_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.kernel_release || 'kernel-main' }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          echo "Fetching published kernel Image (${KERNEL_RELEASE})"
+          curl -fsSL "https://github.com/v9fs/test/releases/download/${KERNEL_RELEASE}/Image" -o artifacts/Image
+          ls -la artifacts/Image
+
+      - name: Build Linux kernel inside image (slow path)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_kernel }}
         env:
           KERNEL_REF: v6.16
           IMAGE: ${{ (github.event_name == 'workflow_dispatch' && inputs.use_local_image) && 'v9fs-kernel-smoke:local' || format('ghcr.io/{0}:sha-{1}', github.repository, github.event.workflow_run.head_sha || github.sha) }}
@@ -84,15 +116,43 @@ jobs:
               git remote add origin https://github.com/torvalds/linux.git
               git fetch --depth 1 origin "${KERNEL_REF}"
               git checkout -q FETCH_HEAD
-              make defconfig
-              make -j"$(nproc)"
+              # Prefer a smaller, QEMU-virt-friendly config over the huge default defconfig.
+              # Fall back to defconfig if virtconfig is not supported by this kernel ref.
+              if make ARCH=arm64 virtconfig >/dev/null 2>&1; then
+                make ARCH=arm64 virtconfig
+              else
+                make ARCH=arm64 defconfig
+              fi
+
+              # Strip heavyweight debug options that slow compiles and are unnecessary for a boot smoke.
+              cfg=./scripts/config
+              if [ -x "${cfg}" ]; then
+                "${cfg}" --file .config \
+                  -d DEBUG_INFO \
+                  -d DEBUG_INFO_DWARF4 \
+                  -d DEBUG_INFO_DWARF5 \
+                  -d DEBUG_INFO_BTF \
+                  -d GDB_SCRIPTS \
+                  -d KCOV \
+                  -d UBSAN \
+                  -d KASAN \
+                  -d KCSAN \
+                  -d LOCKDEP \
+                  -d PROVE_LOCKING \
+                  -d FTRACE \
+                  -d FUNCTION_TRACER \
+                  -d STACK_TRACER || true
+                make ARCH=arm64 olddefconfig
+              fi
+
+              # Build only the kernel image (not modules, not tools).
+              make ARCH=arm64 Image -j"$(nproc)"
             ')"
           trap 'docker rm -f "${CID}" >/dev/null 2>&1 || true' EXIT
           docker start -a "${CID}"
 
           mkdir -p artifacts
           docker cp "${CID}:/opt/v9fs/kernel/arch/arm64/boot/Image" artifacts/Image
-          docker cp "${CID}:/opt/v9fs/initrd.cpio" artifacts/initrd.cpio
 
       - name: Boot kernel on QEMU (arm64) with u-root initrd
         run: |
